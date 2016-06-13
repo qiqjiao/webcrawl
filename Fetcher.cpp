@@ -9,16 +9,6 @@
 
 namespace crawl {
 
-namespace {
-int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp,
-                    void *socketp) {
-  return static_cast<Fetcher*>(userp)->socket_cb(easy, s, what, socketp);
-}
-
-int multi_timer_cb(CURLM *multi, long timeout_ms, void *userp) {
-  return static_cast<Fetcher*>(userp)->timer_cb(multi, timeout_ms);
-}
-
 size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userp) {
   CrawlContext *ctx = static_cast<CrawlContext*>(userp);
   ctx->response_page.append(ptr, size * nmemb);
@@ -26,41 +16,35 @@ size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userp) {
   return size * nmemb;
 }
 
-} // namespace
-
 Fetcher::Fetcher() {
-  //thread_ = std::thread([this]() {
-  //  this->es_.start();
-  //});
-  //usleep(200*1000);
+  task_handle_ = es_.add_timer(std::bind(&Fetcher::task_cb, this), EventServer::PERSIST);
+  es_.start(task_handle_, 10);
 
   curl_global_init(CURL_GLOBAL_ALL);
 
   multi_ = curl_multi_init();
-  curl_multi_setopt(multi_, CURLMOPT_SOCKETFUNCTION, &multi_socket_cb);
+  curl_multi_setopt(multi_, CURLMOPT_SOCKETFUNCTION, &Fetcher::multi_socket_cb);
   curl_multi_setopt(multi_, CURLMOPT_SOCKETDATA, this);
-  curl_multi_setopt(multi_, CURLMOPT_TIMERFUNCTION, &multi_timer_cb);
+  curl_multi_setopt(multi_, CURLMOPT_TIMERFUNCTION, &Fetcher::multi_timer_cb);
   curl_multi_setopt(multi_, CURLMOPT_TIMERDATA, this);
+
+  thread_ = std::thread([this]() { this->es_.loop(); });
 }
 
 Fetcher::~Fetcher() {
-  es_.exit();
+  stopped_ = true;
   thread_.join();
 
   curl_multi_cleanup(multi_);
   curl_global_cleanup();
 }
 
-void Fetcher::cache_resolve(std::shared_ptr<CrawlContext> ctx) {
-  std::string http_resolv  = ctx->url.hostname + ":80:"  + ctx->ip_str;
-  std::string https_resolv = ctx->url.hostname + ":443:" + ctx->ip_str;
-  resolve_lsit_ = curl_slist_append(resolve_lsit_, http_resolv.c_str());
-  resolve_lsit_ = curl_slist_append(resolve_lsit_, https_resolv.c_str());
-}
+void Fetcher::task_cb() {
+  if (stopped_) { es_.exit(); }
 
-bool Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
-  //es_.add_async([this, ctx]() {
-    tasks_.push_back(ctx);
+  std::lock_guard<std::mutex> guard(mutex_);
+  while (!new_tasks_.empty()) {
+    auto ctx = new_tasks_.front();
 
     CURL *easy = curl_easy_init();
     curl_easy_setopt(easy, CURLOPT_URL, ctx->url.url.c_str());
@@ -97,18 +81,25 @@ bool Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
  
     VLOG(1) << "Adding url: " << ctx->url.url;
     curl_multi_add_handle(this->multi_, easy);
-  //});
 
+    new_tasks_.pop_front();
+    tasks_.push_back(ctx);
+  }
+}
+
+bool Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
+  std::lock_guard<std::mutex> guard(mutex_);
+  new_tasks_.push_back(ctx);
   return true;
 }
 
-struct SocketCtx {
-  const EventServer::Handle *read  = nullptr;
-  const EventServer::Handle *write = nullptr;
-};
-
 int Fetcher::socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp) {
-  VLOG(3) << "socket cb: " << s << "," << what << "," << socketp;
+  VLOG(1) << "socket cb: " << s << "," << what << "," << socketp;
+
+  struct SocketCtx {
+    const EventServer::Handle *read  = nullptr;
+    const EventServer::Handle *write = nullptr;
+  };
 
   SocketCtx *sock_ctx = static_cast<SocketCtx*>(socketp);
   if (sock_ctx == nullptr) {
@@ -122,13 +113,17 @@ int Fetcher::socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp) {
       int still_running;
       Fetcher* f = this;
       curl_multi_socket_action(this->multi_, s, what, &still_running);
-      VLOG(1) << "socket cb:" << s << "," << events << ", " << still_running;
+      VLOG(1) << "read/write cb:" << s << "," << events << ", " << still_running;
       f->check_multi_info();
-      if (still_running == 0 && timer_handle_ != nullptr) { es_.stop(timer_handle_); }
+      if (still_running == 0 && multi_timer_handle_ != nullptr) {
+        es_.stop(multi_timer_handle_);
+      }
     };
  
     sock_ctx->read  = es_.add_fd(s, EventServer::READ |EventServer::PERSIST, event_cb);
     sock_ctx->write = es_.add_fd(s, EventServer::WRITE|EventServer::PERSIST, event_cb);
+    //sock_ctx->read  = es_.add_fd(s, EventServer::READ , event_cb);
+    //sock_ctx->write = es_.add_fd(s, EventServer::WRITE, event_cb);
     curl_multi_assign(multi_, s, sock_ctx);
   }
 
@@ -166,15 +161,15 @@ int Fetcher::timer_cb(CURLM *multi, long timeout_ms) {
   VLOG(3) << "timer cb: " << timeout_ms;
 
   if (timeout_ms >= 0) {
-    if (timer_handle_ == nullptr) {
-      timer_handle_ = es_.add_timer([this]() {
+    if (multi_timer_handle_ == nullptr) {
+      multi_timer_handle_ = es_.add_timer([this]() {
         int still_running;
         curl_multi_socket_action(multi_, CURL_SOCKET_TIMEOUT, 0, &still_running);
         this->check_multi_info();
         VLOG(3) << "timer async wait: " << still_running;
       });
     }
-    es_.start(timer_handle_, timeout_ms);
+    es_.start(multi_timer_handle_, timeout_ms);
   }
   return 0;
 }
@@ -201,6 +196,15 @@ void Fetcher::check_multi_info() {
       curl_easy_cleanup(easy);
     }
   }
+}
+
+int Fetcher::multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp,
+                    void *socketp) {
+  return static_cast<Fetcher*>(userp)->socket_cb(easy, s, what, socketp);
+}
+
+int Fetcher::multi_timer_cb(CURLM *multi, long timeout_ms, void *userp) {
+  return static_cast<Fetcher*>(userp)->timer_cb(multi, timeout_ms);
 }
 
 } // namespace crawl

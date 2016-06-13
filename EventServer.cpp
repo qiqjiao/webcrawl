@@ -24,14 +24,12 @@ EventServer::~EventServer() {
 }
 
 void EventServer::loop() {
-  int r = event_base_dispatch(eb_);
-  LOG_IF(ERROR, r == -1) << "loop returned error";
+  CHECK_EQ(event_base_dispatch(eb_), 0);
 }
 
 void EventServer::exit(int ms) {
   timeval tv = {ms/1000, ms%1000*1000};
-  int r = event_base_loopexit(eb_, &tv);
-  LOG_IF(ERROR, r == -1) << "loopexit returned error";
+  CHECK_EQ(event_base_loopexit(eb_, &tv), 0);
 }
 
 const EventServer::Handle *EventServer::add_timer(const EventServer::TimerCb& cb, int flags) {
@@ -56,22 +54,22 @@ const EventServer::Handle *EventServer::add_fd(int fd, int flags, const EventSer
 
 void EventServer::remove(const Handle* h) {
   auto hh = const_cast<Handle*>(h);
-  event_del(hh->ev);
+  CHECK_EQ(event_del(hh->ev), 0);
   event_free(hh->ev);
   handles_.erase(hh);
 }
 
 void EventServer::start(const Handle* h, int64_t ms) {
   if (ms < 0) {
-    event_add(h->ev, nullptr);
+    CHECK_EQ(event_add(h->ev, nullptr), 0);
   } else {
     timeval tv = {ms/1000, ms%1000*1000};
-    event_add(h->ev, &tv);
+    CHECK_EQ(event_add(h->ev, &tv), 0);
   }
 }
 
 void EventServer::stop(const Handle* h) {
-  event_del(h->ev);
+  CHECK_EQ(event_del(h->ev), 0);
 }
 
 void EventServer::ev_cb(evutil_socket_t fd, short flags, void *arg) {

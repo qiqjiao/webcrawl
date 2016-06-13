@@ -1,8 +1,10 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
+#include <deque>
 
 #include <curl/multi.h>
 
@@ -17,22 +19,26 @@ public:
 
   bool add(std::shared_ptr<CrawlContext> ctx);
 
+private:
+  void task_cb();
   int socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp);
   int timer_cb(CURLM *multi, long timeout_ms);
-  void cache_resolve(std::shared_ptr<CrawlContext> ctx);
-
-  void run() {
-    es_.loop();
-  }
-
-private:
   void check_multi_info();
 
-  std::vector<std::shared_ptr<CrawlContext>> tasks_;
-  std::thread thread_;
+  static int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp, void *socketp);
+  static int multi_timer_cb(CURLM *multi, long timeout_ms, void *userp);
+
   EventServer es_;
-  const EventServer::Handle *timer_handle_ = nullptr;
+  std::thread thread_;
+
+  bool stopped_ = false;
+  std::mutex mutex_;
+  const EventServer::Handle *task_handle_ = nullptr;
+  std::deque<std::shared_ptr<CrawlContext>> new_tasks_;
+
+  std::vector<std::shared_ptr<CrawlContext>> tasks_;
+
   CURLM *multi_;
-  curl_slist *resolve_lsit_ = NULL;
+  const EventServer::Handle *multi_timer_handle_ = nullptr;
 };
 } // namespace crawl
