@@ -17,9 +17,6 @@ size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userp) {
 }
 
 Fetcher::Fetcher() {
-  task_handle_ = es_.add_timer(std::bind(&Fetcher::task_cb, this), EventServer::PERSIST);
-  es_.start(task_handle_, 10);
-
   curl_global_init(CURL_GLOBAL_ALL);
 
   multi_ = curl_multi_init();
@@ -28,24 +25,22 @@ Fetcher::Fetcher() {
   curl_multi_setopt(multi_, CURLMOPT_TIMERFUNCTION, &Fetcher::multi_timer_cb);
   curl_multi_setopt(multi_, CURLMOPT_TIMERDATA, this);
 
+  stats_timer_handle_ = es_.add_timer([this](){}, EventServer::PERSIST);
+  es_.start(stats_timer_handle_, 1000);
+
   thread_ = std::thread([this]() { this->es_.loop(); });
 }
 
 Fetcher::~Fetcher() {
-  stopped_ = true;
+  es_.exit();
   thread_.join();
 
   curl_multi_cleanup(multi_);
   curl_global_cleanup();
 }
 
-void Fetcher::task_cb() {
-  if (stopped_) { es_.exit(); }
-
-  std::lock_guard<std::mutex> guard(mutex_);
-  while (!new_tasks_.empty()) {
-    auto ctx = new_tasks_.front();
-
+bool Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
+  es_.add_async([this, ctx]() {
     CURL *easy = curl_easy_init();
     curl_easy_setopt(easy, CURLOPT_URL, ctx->url.url.c_str());
 
@@ -82,14 +77,9 @@ void Fetcher::task_cb() {
     VLOG(1) << "Adding url: " << ctx->url.url;
     curl_multi_add_handle(this->multi_, easy);
 
-    new_tasks_.pop_front();
     tasks_.push_back(ctx);
-  }
-}
+  });
 
-bool Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
-  std::lock_guard<std::mutex> guard(mutex_);
-  new_tasks_.push_back(ctx);
   return true;
 }
 

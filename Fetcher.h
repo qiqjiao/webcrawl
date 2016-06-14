@@ -20,7 +20,6 @@ public:
   bool add(std::shared_ptr<CrawlContext> ctx);
 
 private:
-  void task_cb();
   int socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp);
   int timer_cb(CURLM *multi, long timeout_ms);
   void check_multi_info();
@@ -30,15 +29,9 @@ private:
 
   EventServer es_;
   std::thread thread_;
-
-  bool stopped_ = false;
-  std::mutex mutex_;
-  const EventServer::Handle *task_handle_ = nullptr;
-  std::deque<std::shared_ptr<CrawlContext>> new_tasks_;
-
   std::vector<std::shared_ptr<CrawlContext>> tasks_;
-
-  CURLM *multi_;
+  CURLM *multi_ = nullptr;
   const EventServer::Handle *multi_timer_handle_ = nullptr;
+  const EventServer::Handle *stats_timer_handle_ = nullptr;
 };
 } // namespace crawl

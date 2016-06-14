@@ -14,6 +14,16 @@
 class EventServerTest : public testing::Test {
 };
 
+TEST_F(EventServerTest, async) {
+  EventServer es;
+
+  int i = 0;
+  auto cb = [&es, &i]() { ++i; };
+  es.add_async(cb);
+  es.loop();
+  EXPECT_EQ(1, i);
+}
+
 TEST_F(EventServerTest, timer) {
   auto start = std::chrono::system_clock::now();
 

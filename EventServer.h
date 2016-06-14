@@ -1,7 +1,9 @@
 #pragma once
 
+#include <deque>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 
 struct event;
@@ -16,6 +18,7 @@ public:
   };
   struct Handle;
 
+  using AsyncCb = std::function<void(void)>;
   using TimerCb = std::function<void(void)>;
   using FdCb  = std::function<void(int fd, int events)>;
 
@@ -25,6 +28,7 @@ public:
   void loop();
   void exit(int ms = 0);
 
+  void add_async(const AsyncCb& cb);
   const Handle *add_timer(const TimerCb& cb, int flags = 0);
   const Handle *add_fd(int fd, int flags, const FdCb& cb);
   void remove(const Handle* h);
@@ -37,4 +41,8 @@ private:
 
   struct event_base *eb_;
   std::unordered_map<const Handle*, std::shared_ptr<Handle>> handles_;
+
+  std::mutex mutex_;
+  const Handle *async_handle_;
+  std::deque<AsyncCb> async_callbacks_;
 };

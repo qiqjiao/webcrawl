@@ -21,7 +21,7 @@ add_library(testmain GTestMain.cpp)
 # Unit tests
 add_subdirectory(/usr/src/gtest ${CMAKE_CURRENT_BINARY_DIR}/gtest)
 add_executable(WebCrawlTest EventServer_test.cpp Utils_test.cpp Fetcher_test.cpp)# Ares_test.cpp Fetcher_test.cpp)
-target_link_libraries(WebCrawlTest webcrawl testmain curl boost_system gflags glog gtest event uv)
+target_link_libraries(WebCrawlTest webcrawl testmain curl boost_system gflags glog gtest event event_pthreads uv)
 
 # Expriment
 #add_executable(Experiment Experiment.cpp)
