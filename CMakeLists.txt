@@ -14,13 +14,13 @@ configure_file (
 add_compile_options(-std=c++11 -g -O2)
  
 # Libraries
-add_library(webcrawl Common.cpp Uri.cpp EventServer.cpp Fetcher.cpp) # Ares.cpp Fetcher.cpp)
+add_library(webcrawl Common.cpp Uri.cpp HttpServer.cpp EventServer.cpp Fetcher.cpp) # Ares.cpp Fetcher.cpp)
 
 add_library(testmain GTestMain.cpp)
 
 # Unit tests
 add_subdirectory(/usr/src/gtest ${CMAKE_CURRENT_BINARY_DIR}/gtest)
-add_executable(WebCrawlTest EventServer_test.cpp Uri_test.cpp Fetcher_test.cpp)# Ares_test.cpp Fetcher_test.cpp)
+add_executable(WebCrawlTest EventServer_test.cpp Uri_test.cpp HttpServer_test.cpp Fetcher_test.cpp)# Ares_test.cpp Fetcher_test.cpp)
 target_link_libraries(WebCrawlTest webcrawl testmain curl boost_system gflags glog gtest event event_pthreads uv)
 
 # Expriment
