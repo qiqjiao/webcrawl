@@ -4,6 +4,8 @@
 #include <event2/event.h>
 #include <event2/thread.h>
 
+namespace base {
+
 struct EventServer::Handle : public std::enable_shared_from_this<EventServer::Handle> {
   enum Type { kTimer, kFd };
 
@@ -102,3 +104,5 @@ void EventServer::ev_cb(evutil_socket_t fd, short flags, void *arg) {
     }
   }
 }
+
+} // namespace base

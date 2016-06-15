@@ -3,12 +3,12 @@
 #include <ostream>
 #include <string>
 
-namespace crawl {
+namespace base {
 
-struct Url {
-  bool Init(const std::string& u);
+struct Uri {
+  bool Init(const std::string& uri);
 
-  std::string url;
+  std::string uri;
 
   std::string scheme;
   std::string username;
@@ -20,6 +20,6 @@ struct Url {
   std::string fragment;
 };
 
-std::ostream &operator<<(std::ostream& os, const Url& url);
+std::ostream &operator<<(std::ostream& os, const Uri& uri);
 
-} // namespace crawl
+} // namespace base

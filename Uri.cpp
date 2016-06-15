@@ -1,18 +1,18 @@
-#include "Utils.h"
+#include "Uri.h"
 
 #include <regex>
 #include <iostream>
 
-namespace crawl {
+namespace base {
 
-bool Url::Init(const std::string& u) {
-  static const std::regex url_regex(
+bool Uri::Init(const std::string& u) {
+  static const std::regex uri_regex(
       // scheme  ://  usr :pwd  @   host    :port        /path         ?query     #fragment
       "^([a-z]+)://(([^:]+)(:([^@]+))?@)?([^/:]+)(:([0-9]+))?(/[^\\?#]*)?(\\?([^#]*))?(#(.*))?$");
 
-  url = u;
+  uri = u;
   std::smatch smatch;
-  if (!std::regex_match(url, smatch, url_regex)) { return false; }
+  if (!std::regex_match(uri, smatch, uri_regex)) { return false; }
 
   scheme   = smatch[1].str();
   username = smatch[3].str();
@@ -33,9 +33,9 @@ bool Url::Init(const std::string& u) {
   return true;
 }
 
-std::ostream &operator<<(std::ostream& os, const Url& url) {
-  os << url.url;
+std::ostream &operator<<(std::ostream& os, const Uri& uri) {
+  os << uri.uri;
   return os;
 }
 
-} // namespace crawl
+} // namespace base

@@ -6,8 +6,9 @@
 #include <mutex>
 #include <unordered_map>
 
-struct event;
 struct event_base;
+
+namespace base {
 
 class EventServer {
 public:
@@ -46,3 +47,5 @@ private:
   const Handle *async_handle_;
   std::deque<AsyncCb> async_callbacks_;
 };
+
+} // namespace base

@@ -11,6 +11,8 @@
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 
+namespace base { namespace test {
+
 class EventServerTest : public testing::Test {
 };
 
@@ -145,3 +147,5 @@ TEST_F(EventServerTest, fd) {
 
   svr.join();
 }
+
+}} // namespace base::test

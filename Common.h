@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-#include "Utils.h"
+#include "Uri.h"
 
 namespace crawl {
 
@@ -38,12 +38,12 @@ private:
 std::ostream& operator<<(std::ostringstream& os, const Status& s);
 
 struct CrawlContext {
-  Url         url;
-  int         ip;
-  std::string ip_str;
-  long        response_code;
-  std::string response_headers;
-  std::string response_page;
+  base::Uri     uri;
+  int           ip;
+  std::string   ip_str;
+  long          response_code;
+  std::string   response_headers;
+  std::string   response_page;
 };
 
 } // namespace crawl

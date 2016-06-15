@@ -1,17 +1,17 @@
-#include "Utils.h"
+#include "Uri.h"
 
 #include <gtest/gtest.h>
 
-namespace crawl { namespace test {
+namespace base { namespace test {
 
 class UtilsTest : public testing::Test {
 
 };
 
-TEST_F(UtilsTest, Url) {
-  Url u;
+TEST_F(UtilsTest, Uri) {
+  Uri u;
 
-  auto verify = [](const std::vector<std::string> &v, const Url &u) {
+  auto verify = [](const std::vector<std::string> &v, const Uri &u) {
     EXPECT_EQ(v[0], u.scheme);
     EXPECT_EQ(v[1], u.username);
     EXPECT_EQ(v[2], u.password);
@@ -43,4 +43,4 @@ TEST_F(UtilsTest, Url) {
   verify({"http", "", "", "example.com", "80", "/over/there/index.dtb", "", ""}, u);
 }
 
-}} // namespace crawl::test
+}} // namespace base::test
