@@ -8,4 +8,4 @@ Fetcher -> Analyzer -> Scheduler
 
 * packages
 - apt-get install libgoogle-glog-dev libgflags-dev libgtest-dev libevent-dev libcurl4-openssl-dev
-
+                  libjsoncpp-dev libcpprest-dev

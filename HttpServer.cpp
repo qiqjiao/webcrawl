@@ -59,12 +59,12 @@ void HttpServer::AddHandle(const std::string& path, const HandleCb& cb) {
       if (s != nullptr) { d->assign(s); }
     };
     const evhttp_uri *evuri = evhttp_request_get_evhttp_uri(evreq);
-    set_str(&req.uri.uri      , evhttp_request_get_uri(evreq));
-    set_str(&req.uri.hostname , evhttp_request_get_host(evreq));
+    set_str(&req.uri.str      , evhttp_request_get_uri(evreq));
+    set_str(&req.uri.host     , evhttp_request_get_host(evreq));
     set_str(&req.uri.scheme   , evhttp_uri_get_scheme(evuri));
     set_str(&req.uri.username , evhttp_uri_get_userinfo(evuri));
     set_str(&req.uri.password , evhttp_uri_get_userinfo(evuri));
-    set_str(&req.uri.hostname , evhttp_uri_get_host(evuri));
+    set_str(&req.uri.host     , evhttp_uri_get_host(evuri));
     set_str(&req.uri.path     , evhttp_uri_get_path(evuri));
     set_str(&req.uri.query    , evhttp_uri_get_query(evuri));
     set_str(&req.uri.fragment , evhttp_uri_get_fragment(evuri));

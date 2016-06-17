@@ -1,41 +1,33 @@
 #pragma once
 
-#include <deque>
 #include <functional>
-#include <mutex>
+#include <memory>
 #include <string>
-#include <thread>
-#include <unordered_map>
 #include <vector>
 
-#include <uv.h>
+#include "Status.h"
+
+namespace base {
+
+class EventServer;
 
 class Ares {
 public:
   using AddrList = std::vector<std::string>;
-  using ResolveCb = std::function<void(const AddrList& addrs, const char *error)>;
+  using ResolveCb = std::function<void(const AddrList &addrs, const Status &s)>;
 
   Ares();
   ~Ares();
 
-  void resolve(const std::string& hostname, ResolveCb cb);
+  void resolve(const std::string& name, const ResolveCb& cb);
 
 private:
-  struct ResolveInfo {
-    Ares *ares;
-    bool in_processing = false;
-    std::string hostname;
-    uv_getaddrinfo_t uv_handle;
-    std::deque<ResolveCb> cbs;
-  };
+  struct Impl;
 
-  static void uv_async_cb(uv_async_t* handle);
-  static void uv_on_resolved_cb(uv_getaddrinfo_t* req, int status,
-                                struct addrinfo* res);
+  void do_work();
 
-  std::thread thread_;
-  std::mutex  mutex_;
-  std::unordered_map<std::string, ResolveInfo> resolve_infos_;
-  uv_loop_t   uv_loop_;
-  uv_async_t  uv_async_handle_;
+  EventServer *es_;
+  std::unique_ptr<Impl> impl_;
 };
+
+} // namespace base

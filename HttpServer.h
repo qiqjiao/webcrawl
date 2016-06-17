@@ -13,6 +13,11 @@ struct evhttp_bound_socket;
 
 namespace base {
 
+// http://www.wangafu.net/~nickm/libevent-2.0/doxygen/html/http_8h.html#a5404c30f3b50a664f2ec1500ebb30d86
+// https://github.com/libevent/libevent/blob/master/sample/http-server.c
+// https://github.com/libevent/libevent/blob/master/sample/https-client.c
+// https://github.com/libevent/libevent/blob/master/http.c
+// http://blog.csdn.net/pcliuguangtao/article/details/9360331
 class HttpServer {
 public:
   struct Request {

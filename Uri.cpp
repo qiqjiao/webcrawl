@@ -1,23 +1,24 @@
 #include "Uri.h"
 
 #include <regex>
-#include <iostream>
 
 namespace base {
 
-bool Uri::Init(const std::string& u) {
+void Uri::Init(const std::string& u) {
   static const std::regex uri_regex(
       // scheme  ://  usr :pwd  @   host    :port        /path         ?query     #fragment
       "^([a-z]+)://(([^:]+)(:([^@]+))?@)?([^/:]+)(:([0-9]+))?(/[^\\?#]*)?(\\?([^#]*))?(#(.*))?$");
 
-  uri = u;
+  str = u;
   std::smatch smatch;
-  if (!std::regex_match(uri, smatch, uri_regex)) { return false; }
+  if (!std::regex_match(str, smatch, uri_regex)) {
+    throw std::invalid_argument("Invalid uri [" + str + "]");
+  }
 
   scheme   = smatch[1].str();
   username = smatch[3].str();
   password = smatch[5].str();
-  hostname = smatch[6].str();
+  host     = smatch[6].str();
   path     = smatch[9].str().empty() ? "/" : smatch[9].str();
   query    = smatch[11].str();
   fragment = smatch[13].str();
@@ -29,12 +30,10 @@ bool Uri::Init(const std::string& u) {
   } else if (scheme == "https") {
     port = 443;
   }
-
-  return true;
 }
 
 std::ostream &operator<<(std::ostream& os, const Uri& uri) {
-  os << uri.uri;
+  os << uri.str;
   return os;
 }
 

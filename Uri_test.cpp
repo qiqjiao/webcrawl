@@ -15,7 +15,7 @@ TEST_F(UtilsTest, Uri) {
     EXPECT_EQ(v[0], u.scheme);
     EXPECT_EQ(v[1], u.username);
     EXPECT_EQ(v[2], u.password);
-    EXPECT_EQ(v[3], u.hostname);
+    EXPECT_EQ(v[3], u.host);
     EXPECT_EQ(v[4], std::to_string(u.port));
     EXPECT_EQ(v[5], u.path);
     EXPECT_EQ(v[6], u.query);

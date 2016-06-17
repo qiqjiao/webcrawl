@@ -3,20 +3,23 @@
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 
+namespace base { namespace test {
+
 class AresTest : public testing::Test {};
 
 TEST_F(AresTest, smoke) {
   Ares ares;
-  ares.resolve("www.google.com", [](const Ares::AddrList& addrs, const char *error) {
+  ares.resolve("www.google.com", [](const Ares::AddrList& addrs, const Status &s) {
     for (const auto& addr: addrs) {
-      LOG(INFO) << addr;
+      LOG(INFO) << "www.google.com -> " << addr;
     }
   });
-  ares.resolve("mail.google.com", [](const Ares::AddrList& addrs, const char *error) {
+  ares.resolve("mail.google.com", [](const Ares::AddrList& addrs, const Status &s) {
     for (const auto& addr: addrs) {
-      LOG(INFO) << addr;
+      LOG(INFO) << "mail.google.com -> " << addr;
     }
   });
-
-  sleep(10);
+  sleep(3);
 }
+
+}} // namespace base::test

@@ -23,8 +23,8 @@ TEST_F(FetcherTest, smoke) {
   if (!FLAGS_url.empty()) {
     auto ctx = std::make_shared<CrawlContext>();
     fetcher.add(ctx);
-    EXPECT_TRUE(ctx->uri.Init(FLAGS_url));
-    VLOG(1) << ctx->uri.uri;
+    ctx->uri.Init(FLAGS_url);
+    VLOG(2) << ctx->uri.str;
   } else {
     std::string line;
     //std::ifstream ifs("testsites");
@@ -36,11 +36,11 @@ TEST_F(FetcherTest, smoke) {
       size_t s = line.find('"'), e = line.rfind('"');
       auto ctx = std::make_shared<CrawlContext>();
       //EXPECT_TRUE(ctx->url.Init("http://www." + line.substr(s + 1, e - s - 1)));
-      EXPECT_TRUE(ctx->uri.Init("http://" + line.substr(s + 1, e - s - 1)));
+      ctx->uri.Init("http://" + line.substr(s + 1, e - s - 1));
       //EXPECT_TRUE(ctx->url.Init("http://www.163.com/"));
       //EXPECT_TRUE(ctx->url.Init("http://www.huzide.com/"));
       //EXPECT_TRUE(ctx->url.Init("https://www.google.com/"));
-      VLOG(1) << ctx->uri.uri;
+      VLOG(2) << ctx->uri.str;
       //auto ares_cb =  [&fetcher, ctx, &resolved](const Ares::AddrList& addrs, const char *error) {
       //  if (addrs.empty() || error != nullptr) {
       //    LOG(ERROR) << "Failed to get ip for " << ctx->url.hostname << ", " << error;
@@ -65,7 +65,6 @@ TEST_F(FetcherTest, smoke) {
   //fetcher.run();
   sleep(FLAGS_runtime);
   LOG(INFO) << "Test is done";
-  _exit(0);
 }
 
 }} // namespace crawl::test

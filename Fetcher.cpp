@@ -4,15 +4,42 @@
 #include <string.h>
 
 #include <fstream>
+#include <future>
+#include <memory>
 
 #include <glog/logging.h>
 
+#include "Utils.h"
+
 namespace crawl {
 
-size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userp) {
+namespace {
+
+struct FetcherContext: public CrawlContext::SubContext {
+  ~FetcherContext() override {
+    curl_slist_free_all(req_headers);
+    curl_slist_free_all(resolve_list);
+  }
+
+  curl_slist *req_headers  = nullptr;
+  curl_slist *resolve_list = nullptr;
+};
+
+} // namespace
+
+size_t write_header_cb(char *buffer, size_t size, size_t nitems, void *userdata) {
+  CrawlContext *ctx = static_cast<CrawlContext*>(userdata);
+  ctx->resp_headers.push_back(std::string(buffer, size * nitems));
+  return size * nitems;
+}
+
+size_t write_body_cb(char *ptr, size_t size, size_t nmemb, void *userp) {
   CrawlContext *ctx = static_cast<CrawlContext*>(userp);
-  ctx->response_page.append(ptr, size * nmemb);
-  VLOG(3) << "write cb: " << ctx->uri << "," << size * nmemb;
+  if (ctx->resp_body.size() > Fetcher::kMaxBodySize) {
+    ctx->truncated = true;
+  } else {
+    ctx->resp_body.append(ptr, size * nmemb);
+  }
   return size * nmemb;
 }
 
@@ -29,6 +56,8 @@ Fetcher::Fetcher() {
   es_.start(stats_timer_handle_, 1000);
 
   thread_ = std::thread([this]() { this->es_.loop(); });
+
+  LOG(INFO) << "Fetcher [" << this << "] started";
 }
 
 Fetcher::~Fetcher() {
@@ -37,54 +66,148 @@ Fetcher::~Fetcher() {
 
   curl_multi_cleanup(multi_);
   curl_global_cleanup();
+  LOG(INFO) << "Fetcher [" << this << "] exited";
 }
 
-bool Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
-  es_.add_async([this, ctx]() {
-    CURL *easy = curl_easy_init();
-    curl_easy_setopt(easy, CURLOPT_URL, ctx->uri.uri.c_str());
+void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
+  auto ares_cb = [this, ctx](const base::Ares::AddrList &addrs, const base::Status &s)
+  {
+    VLOG(1) << "Fetcher dns resolution done, " << s;
+    ctx->end_resolve_time_ms = base::now_in_ms();
+    if (!s) {
+      ctx->done = true;
+      ctx->end_req_time_ms = base::now_in_ms();
+      ctx->error_message = s.msg();
+      return;
+    }
+    ctx->ip = addrs[0];
 
-    curl_easy_setopt(easy, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:43.0) Gecko/20100101 Firefox/43.0"); 
-    //curl_easy_setopt(easy, CURLOPT_ACCEPT_ENCODING, "gzip, deflate"); 
+    es_.add_async([this, ctx]() {
+      CURL *easy = curl_easy_init();
 
-    curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Accept-Encoding: gzip, deflate");
-    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.5");
-    curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
+      curl_easy_setopt(easy, CURLOPT_URL, ctx->uri.str.c_str());
+      curl_easy_setopt(easy, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:43.0) Gecko/20100101 Firefox/43.0"); 
+      curl_easy_setopt(easy, CURLOPT_ACCEPT_ENCODING, "gzip, deflate"); 
+      curl_easy_setopt(easy, CURLOPT_HTTP_CONTENT_DECODING, 1L);
 
-    //FILE *file = fopen("/dev/null", "wb");
-    //curl_easy_setopt(easy, CURLOPT_WRITEDATA, file);
-    curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, write_cb);
-    curl_easy_setopt(easy, CURLOPT_WRITEDATA, ctx.get());
-    curl_easy_setopt(easy, CURLOPT_PRIVATE, ctx.get());
-    //curl_easy_setopt(easy, CURLOPT_PRIVATE, ctx->uri.uri.c_str());
-    curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(easy, CURLOPT_MAXREDIRS, 3L);
-    curl_easy_setopt(easy, CURLOPT_TIMEOUT, 90L); 
+      auto fc = std::make_unique<FetcherContext>();
+      fc->req_headers = curl_slist_append(fc->req_headers, "Accept-Language: en-US,en;q=0.5");
+      for (auto const &hdr: ctx->req_headers) {
+        fc->req_headers = curl_slist_append(fc->req_headers, hdr.c_str());
+      }
+      curl_easy_setopt(easy, CURLOPT_HTTPHEADER, fc->req_headers);
 
-    //curl_easy_setopt(easy, CURLOPT_SSL_VERIFYPEER, 0L);
-    //curl_easy_setopt(easy, CURLOPT_SSL_VERIFYHOST, 0L);
+      curl_easy_setopt(easy, CURLOPT_PRIVATE, ctx.get());
+      curl_easy_setopt(easy, CURLOPT_TIMEOUT, 90L); 
 
-    //curl_easy_setopt(easy, CURLOPT_VERBOSE, 1L);
-    //curl_easy_setopt(easy, CURLOPT_NOPROGRESS, 1L);
-    //std::string http_resolv  = ctx->url.hostname + ":80:"  + ctx->ip_str;
-    //std::string https_resolv = ctx->url.hostname + ":443:" + ctx->ip_str;
-    //curl_slist *resolve_lsit = NULL;
-    //resolve_lsit = curl_slist_append(resolve_lsit, http_resolv.c_str());
-    //resolve_lsit = curl_slist_append(resolve_lsit, https_resolv.c_str());
-    //curl_easy_setopt(easy, CURLOPT_RESOLVE, resolve_lsit);
+      curl_easy_setopt(easy, CURLOPT_HEADERFUNCTION, write_header_cb); 
+      curl_easy_setopt(easy, CURLOPT_HEADERDATA, ctx.get());
+      curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, write_body_cb);
+      curl_easy_setopt(easy, CURLOPT_WRITEDATA, ctx.get());
+
+      curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
+      curl_easy_setopt(easy, CURLOPT_MAXREDIRS, 3L);
+
+      //curl_easy_setopt(easy, CURLOPT_SSL_VERIFYPEER, 0L);
+      //curl_easy_setopt(easy, CURLOPT_SSL_VERIFYHOST, 0L);
+      //curl_easy_setopt(easy, CURLOPT_VERBOSE, 1L);
+      //curl_easy_setopt(easy, CURLOPT_NOPROGRESS, 1L);
+
+      std::string http_resolv  = ctx->uri.host + ":80:"  + ctx->ip;
+      std::string https_resolv = ctx->uri.host + ":443:" + ctx->ip;
+      fc->resolve_list = curl_slist_append(fc->resolve_list, http_resolv.c_str());
+      fc->resolve_list = curl_slist_append(fc->resolve_list, https_resolv.c_str());
+      curl_easy_setopt(easy, CURLOPT_RESOLVE, fc->resolve_list);
  
-    VLOG(1) << "Adding url: " << ctx->uri.uri;
-    curl_multi_add_handle(this->multi_, easy);
+      ctx->sub_ctx[typeid(this).name()] = std::move(fc);
 
-    tasks_.push_back(ctx);
+      VLOG(1) << "==> " << ctx->method << ' ' << ctx->uri.str;
+      curl_multi_add_handle(this->multi_, easy);
+
+      tasks_.push_back(ctx);
+    });
+  };
+
+  ctx->start_req_time_ms = base::now_in_ms();
+  ares_.resolve(ctx->uri.host, ares_cb);
+}
+
+Json::Value Fetcher::create_tasks_req(const Json::Value &req_body) {
+  Json::Value resp(Json::objectValue);
+
+  try {
+    if (tasks_.size() + req_body["tasks"].size() > kMaxTasksCnt) {
+      throw std::length_error("Too many pending tasks");
+    }
+
+    std::vector<std::shared_ptr<CrawlContext>> ctxs;
+    for (auto const& task: req_body["tasks"]) {
+      auto ctx = std::make_shared<CrawlContext>();
+      ctx->id = reinterpret_cast<long>(ctx.get());
+      ctx->method = task["method"].asString();
+      ctx->uri.Init(task["uri"].asString());
+      for (auto const& hdr: task["headers"]) {
+        ctx->req_headers.push_back(hdr.asString());
+      }
+      ctxs.push_back(ctx);
+    }
+
+    resp["tasks"] = Json::Value(Json::arrayValue);
+    for (auto ctx: ctxs) {
+      Json::Value task(Json::objectValue);
+      task["id"] = Json::Int64(ctx->id);
+      task["summary"] = ctx->method + " " + ctx->uri.str;
+      resp["tasks"].append(task);
+
+      add(ctx);
+    }
+  } catch (const std::exception &e) {
+    resp.clear();
+    resp["error"] = e.what();
+  }
+
+  return resp;
+}
+
+Json::Value Fetcher::get_done_tasks_req() {
+  std::promise<Json::Value> promise;
+  std::future<Json::Value> future = promise.get_future();
+
+  es_.add_async([this, &promise]() {
+    Json::Value resp(Json::objectValue);
+    resp["tasks"] = Json::Value(Json::arrayValue);
+    std::vector<std::shared_ptr<CrawlContext>> busy_tasks;
+    while (!tasks_.empty()) {
+      auto ctx = tasks_.back();
+      tasks_.pop_back();
+      if (ctx->done) {
+        Json::Value r(Json::objectValue);
+        r["id"] = Json::Int64(ctx->id);
+        r["method"] = ctx->method;
+        r["uri"] = ctx->uri.str;
+        if (!ctx->error_message.empty()) {
+          r["error"] = ctx->error_message;
+        }
+        r["response_code"] = Json::Int64(ctx->resp_code);
+        r["response_headers"] = Json::Value(Json::arrayValue);
+        for (auto const& h: ctx->resp_headers) {
+          r["response_headers"].append(h);
+        }
+        r["response_body"] = ctx->resp_body;
+        resp["tasks"].append(r);
+      } else {
+        busy_tasks.push_back(ctx);
+      }
+    }
+    tasks_.swap(busy_tasks);
+    promise.set_value(std::move(resp));
   });
 
-  return true;
+  return future.get();
 }
 
 int Fetcher::socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp) {
-  VLOG(1) << "socket cb: " << s << "," << what << "," << socketp;
+  VLOG(3) << "socket cb: " << s << "," << what << "," << socketp;
 
   struct SocketCtx {
     const base::EventServer::Handle *read  = nullptr;
@@ -103,7 +226,7 @@ int Fetcher::socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp) {
       int still_running;
       Fetcher* f = this;
       curl_multi_socket_action(this->multi_, s, what, &still_running);
-      VLOG(1) << "read/write cb:" << s << "," << events << ", " << still_running;
+      VLOG(3) << "read/write cb:" << s << "," << events << ", " << still_running;
       f->check_multi_info();
       if (still_running == 0 && multi_timer_handle_ != nullptr) {
         es_.stop(multi_timer_handle_);
@@ -112,8 +235,6 @@ int Fetcher::socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp) {
  
     sock_ctx->read  = es_.add_fd(s, base::EventServer::READ |base::EventServer::PERSIST, event_cb);
     sock_ctx->write = es_.add_fd(s, base::EventServer::WRITE|base::EventServer::PERSIST, event_cb);
-    //sock_ctx->read  = es_.add_fd(s, EventServer::READ , event_cb);
-    //sock_ctx->write = es_.add_fd(s, EventServer::WRITE, event_cb);
     curl_multi_assign(multi_, s, sock_ctx);
   }
 
@@ -134,7 +255,6 @@ int Fetcher::socket_cb(CURL *easy, curl_socket_t s, int what, void *socketp) {
       break;
 
     case CURL_POLL_REMOVE:
-      VLOG(1) << "Remove socket:" << s;
       es_.remove(sock_ctx->read);
       es_.remove(sock_ctx->write);
       delete sock_ctx;
@@ -174,14 +294,20 @@ void Fetcher::check_multi_info() {
     CURL *easy = msg->easy_handle;
     CrawlContext *ctx = nullptr;
     curl_easy_getinfo(easy, CURLINFO_PRIVATE, &ctx);
-    curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &ctx->response_code);
+    curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &ctx->resp_code);
 
     VLOG(2) << "check_multi_info:" << ctx->uri;
 
     if(msg->msg == CURLMSG_DONE) {
-      LOG(INFO) << "DONE: " << ctx->uri << ", code: " << ctx->response_code
-              << " curlcode:" << msg->data.result << ", curlmsg:" << curl_easy_strerror(msg->data.result)
-              << ", page: " << ctx->response_page.size() << ", cnt=" << ++cnt;
+      VLOG(1) << "<== " << ctx->resp_code << ' ' << msg->data.result << ' '
+              << ctx->resp_body.size() << ' ' << ++cnt << " ["
+              << ctx->method << ' ' << ctx->uri << "]";
+      if (msg->data.result != 0) {
+        ctx->error_message = curl_easy_strerror(msg->data.result);
+        VLOG(2) << msg->data.result << ":" << curl_easy_strerror(msg->data.result);
+      }
+      ctx->done = true;
+      ctx->end_req_time_ms = base::now_in_ms();
       curl_multi_remove_handle(multi_, easy);
       curl_easy_cleanup(easy);
     }

@@ -6,14 +6,14 @@
 namespace base {
 
 struct Uri {
-  bool Init(const std::string& uri);
+  void Init(const std::string& uri);
 
-  std::string uri;
+  std::string str;
 
   std::string scheme;
   std::string username;
   std::string password;
-  std::string hostname;
+  std::string host;
   int         port = 0;
   std::string path;
   std::string query;
