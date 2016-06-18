@@ -9,9 +9,9 @@
 #include <curl/multi.h>
 #include <jsoncpp/json/json.h>
 
-#include "Ares.h"
+#include "base/Ares.h"
+#include "base/EventServer.h"
 #include "CrawlContext.h"
-#include "EventServer.h"
 
 namespace crawl {
 

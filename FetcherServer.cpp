@@ -3,8 +3,8 @@
 #include <jsoncpp/json/json.h>
 #include <gflags/gflags.h>
 
+#include "base/HttpServer.h"
 #include "Fetcher.h"
-#include "HttpServer.h"
 
 
 DEFINE_int32(fetcher_rest_svr_port, 31200, "Fetcher rest server port");

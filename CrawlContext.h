@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Uri.h"
+#include "base/Uri.h"
 
 namespace crawl {
 
