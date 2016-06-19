@@ -82,7 +82,7 @@ void EventServer::start(const Handle* h, int64_t ms) {
   if (ms < 0) {
     CHECK_NE(event_add(h->ev, nullptr), -1);
   } else {
-    timeval tv = {ms/1000, ms%1000*1000};
+    timeval tv = {(time_t)(ms/1000), (suseconds_t)(ms%1000*1000)};
     CHECK_NE(event_add(h->ev, &tv), -1);
   }
 }

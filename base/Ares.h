@@ -26,7 +26,6 @@ private:
 
   void do_work();
 
-  EventServer *es_;
   std::unique_ptr<Impl> impl_;
 };
 

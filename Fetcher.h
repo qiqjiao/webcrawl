@@ -7,7 +7,7 @@
 #include <deque>
 
 #include <curl/multi.h>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 #include "base/Ares.h"
 #include "base/EventServer.h"

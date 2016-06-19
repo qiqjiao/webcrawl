@@ -90,7 +90,7 @@ void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
       curl_easy_setopt(easy, CURLOPT_ACCEPT_ENCODING, "gzip, deflate"); 
       curl_easy_setopt(easy, CURLOPT_HTTP_CONTENT_DECODING, 1L);
 
-      auto fc = std::make_unique<FetcherContext>();
+      std::unique_ptr<FetcherContext> fc(new FetcherContext);
       fc->req_headers = curl_slist_append(fc->req_headers, "Accept-Language: en-US,en;q=0.5");
       for (auto const &hdr: ctx->req_headers) {
         fc->req_headers = curl_slist_append(fc->req_headers, hdr.c_str());
@@ -322,5 +322,6 @@ int Fetcher::multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp,
 int Fetcher::multi_timer_cb(CURLM *multi, long timeout_ms, void *userp) {
   return static_cast<Fetcher*>(userp)->timer_cb(multi, timeout_ms);
 }
+
 
 } // namespace crawl

@@ -1,6 +1,3 @@
-# GTest
-add_subdirectory(/usr/src/gtest ${CMAKE_CURRENT_BINARY_DIR}/gtest)
-
 # Libraries
 add_library(base Ares.cpp EventServer.cpp HttpServer.cpp Uri.cpp Utils.cpp)
 target_link_libraries(base gflags glog event event_pthreads jsoncpp cares pthread)
@@ -11,3 +8,4 @@ target_link_libraries(testmain gtest)
 # Unit tests
 add_executable(BaseTest Ares_test.cpp HttpServer_test.cpp EventServer_test.cpp Uri_test.cpp)
 target_link_libraries(BaseTest base testmain)
+add_test(BaseTest BaseTest)

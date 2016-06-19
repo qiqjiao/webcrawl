@@ -1,6 +1,6 @@
 #include <sstream>
 
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <gflags/gflags.h>
 
 #include "base/HttpServer.h"

@@ -12,8 +12,8 @@ namespace crawl { namespace test {
 class FetcherTest : public testing::Test {
 
 };
-DEFINE_int32(cnt, 200, "");
-DEFINE_int32(runtime, 80, "");
+DEFINE_int32(cnt, 20, "");
+DEFINE_int32(runtime, 10, "");
 DEFINE_string(url, "", "");
 
 TEST_F(FetcherTest, smoke) {
