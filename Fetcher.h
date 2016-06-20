@@ -9,7 +9,7 @@
 #include <curl/multi.h>
 #include <json/json.h>
 
-#include "base/Ares.h"
+#include "base/Resolver.h"
 #include "base/EventServer.h"
 #include "CrawlContext.h"
 
@@ -71,7 +71,7 @@ private:
   static int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp, void *socketp);
   static int multi_timer_cb(CURLM *multi, long timeout_ms, void *userp);
 
-  base::Ares ares_;
+  base::Resolver resolver_;
   base::EventServer es_;
   std::thread thread_;
 

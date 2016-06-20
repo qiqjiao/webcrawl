@@ -70,7 +70,7 @@ Fetcher::~Fetcher() {
 }
 
 void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
-  auto ares_cb = [this, ctx](const base::Ares::AddrList &addrs, const base::Status &s)
+  auto resolver_cb = [this, ctx](const base::Resolver::AddrList &addrs, const base::Status &s)
   {
     VLOG(1) << "Fetcher dns resolution done, " << s;
     ctx->end_resolve_time_ms = base::now_in_ms();
@@ -80,7 +80,7 @@ void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
       ctx->error_message = s.msg();
       return;
     }
-    ctx->ip = addrs[0];
+    ctx->ip = addrs[rand() % addrs.size()];
 
     es_.add_async([this, ctx]() {
       CURL *easy = curl_easy_init();
@@ -113,10 +113,14 @@ void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
       //curl_easy_setopt(easy, CURLOPT_VERBOSE, 1L);
       //curl_easy_setopt(easy, CURLOPT_NOPROGRESS, 1L);
 
-      std::string http_resolv  = ctx->uri.host + ":80:"  + ctx->ip;
-      std::string https_resolv = ctx->uri.host + ":443:" + ctx->ip;
-      fc->resolve_list = curl_slist_append(fc->resolve_list, http_resolv.c_str());
-      fc->resolve_list = curl_slist_append(fc->resolve_list, https_resolv.c_str());
+      std::string res_list[] = {
+        ctx->uri.host + ":80:"  + ctx->ip,
+        ctx->uri.host + ":443:" + ctx->ip,
+        ctx->uri.host + ":" + std::to_string(ctx->uri.port) + ":" + ctx->ip,
+      };
+      for (const std::string& res: res_list) {
+        fc->resolve_list = curl_slist_append(fc->resolve_list, res.c_str());
+      }
       curl_easy_setopt(easy, CURLOPT_RESOLVE, fc->resolve_list);
  
       ctx->sub_ctx[typeid(this).name()] = std::move(fc);
@@ -129,7 +133,7 @@ void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
   };
 
   ctx->start_req_time_ms = base::now_in_ms();
-  ares_.resolve(ctx->uri.host, ares_cb);
+  resolver_.resolve(ctx->uri.host, resolver_cb);
 }
 
 Json::Value Fetcher::create_tasks_req(const Json::Value &req_body) {

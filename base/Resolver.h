@@ -9,20 +9,19 @@
 
 namespace base {
 
-class Ares {
+class Resolver {
 public:
   using AddrList = std::vector<std::string>;
   using ResolveCb = std::function<void(const AddrList &addrs, const Status &s)>;
 
-  Ares();
-  ~Ares();
+  Resolver();
+  ~Resolver();
 
   void resolve(const std::string& name, const ResolveCb& cb);
 
 private:
   struct Impl;
-
-  void do_work();
+  static void ev_cb(int fd, short flags, void *arg);
 
   std::unique_ptr<Impl> impl_;
 };
