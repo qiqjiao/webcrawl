@@ -35,8 +35,8 @@ target_link_libraries(WebCrawlTest base webcrawl testmain)
 add_test(WebCrawlTest WebCrawlTest)
 
 # Expriment
-add_executable(Experiment Experiment.cpp)
-target_link_libraries(Experiment event uv)
+#add_executable(Experiment Experiment.cpp)
+#target_link_libraries(Experiment event uv)
 
 # Fetcher Server
 add_executable(FetcherServer FetcherServer.cpp)

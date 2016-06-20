@@ -3,7 +3,7 @@
 #include <uv.h>
 
 using namespace std;
-void wait_for_a_while(uv_idle_t* handle) {
+void wait_for_a_while(uv_idle_t* handle, int) {
     cout << "waiting ..." << endl;
 }
 
@@ -17,6 +17,6 @@ int main() {
 
     uv_run(loop, UV_RUN_DEFAULT);
 
-    uv_loop_close(loop);
+    //uv_loop_close(loop);
     return 0;
 }
