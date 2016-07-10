@@ -1,7 +1,7 @@
 #include <sstream>
 
-#include <json/json.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include "base/HttpServer.h"
 #include "Fetcher.h"
@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
   HttpServer svr("0.0.0.0", FLAGS_fetcher_rest_svr_port);
 
   svr.AddHandle("/fetch", [&fetcher](const HttpServer::Request &req, HttpServer::Response *resp) {
+    VLOG(2) << "New request: " << req.body;
     Json::Value r;
     Json::Reader reader;
     if (!reader.parse(req.body, r)) {
@@ -39,6 +40,8 @@ int main(int argc, char *argv[]) {
       resp->reason = "Created";
     }
 
+    resp->headers["Content-Type"] = "application/json";
+
     Json::StyledWriter writer;
     resp->body = writer.write(resp_body);
   });
@@ -49,6 +52,7 @@ int main(int argc, char *argv[]) {
     Json::StyledWriter writer;
     resp->code = 200;
     resp->reason = "OK";
+    resp->headers["Content-Type"] = "application/json";
     resp->body = writer.write(r);
   });
 

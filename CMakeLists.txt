@@ -26,7 +26,7 @@ add_compile_options(-std=c++1y -g -O2)
 add_subdirectory(base)
 
 # Libraries
-add_library(webcrawl Fetcher.cpp)
+add_library(webcrawl CrawlContext.cpp Fetcher.cpp)
 target_link_libraries(webcrawl base curl)
 
 # Unit tests

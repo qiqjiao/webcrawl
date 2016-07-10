@@ -5,15 +5,17 @@
 #include <unordered_map>
 #include <vector>
 
+#include <json/json.h>
+
 #include "base/Uri.h"
 
 namespace crawl {
 
 struct CrawlContext {
-
   struct SubContext {
     virtual ~SubContext() {}
   };
+  using SubCtxMap = std::unordered_map<std::string, std::unique_ptr<SubContext>>;
 
   long                        id = -1;
 
@@ -33,12 +35,15 @@ struct CrawlContext {
 
   bool                        truncated = false;
   std::string                 error_message;
+  std::string                 summary;
 
   // Internal used fields
+  SubCtxMap                   sub_ctx;
   std::string                 ip;
   bool                        done = false;
 
-  std::unordered_map<std::string, std::unique_ptr<SubContext>> sub_ctx;
+  Json::Value ToJson() const;
+  CrawlContext& FromJson(const Json::Value& obj);
 };
 
 } // namespace crawl

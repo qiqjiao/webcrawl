@@ -147,22 +147,15 @@ Json::Value Fetcher::create_tasks_req(const Json::Value &req_body) {
     std::vector<std::shared_ptr<CrawlContext>> ctxs;
     for (auto const& task: req_body["tasks"]) {
       auto ctx = std::make_shared<CrawlContext>();
+      ctx->FromJson(task);
       ctx->id = reinterpret_cast<long>(ctx.get());
-      ctx->method = task["method"].asString();
-      ctx->uri.Init(task["uri"].asString());
-      for (auto const& hdr: task["headers"]) {
-        ctx->req_headers.push_back(hdr.asString());
-      }
+      ctx->summary = ctx->method + " " + ctx->uri.str;
       ctxs.push_back(ctx);
     }
 
     resp["tasks"] = Json::Value(Json::arrayValue);
     for (auto ctx: ctxs) {
-      Json::Value task(Json::objectValue);
-      task["id"] = Json::Int64(ctx->id);
-      task["summary"] = ctx->method + " " + ctx->uri.str;
-      resp["tasks"].append(task);
-
+      resp["tasks"].append(ctx->ToJson());
       add(ctx);
     }
   } catch (const std::exception &e) {
@@ -186,19 +179,7 @@ Json::Value Fetcher::get_done_tasks_req() {
       tasks_.pop_back();
       if (ctx->done) {
         Json::Value r(Json::objectValue);
-        r["id"] = Json::Int64(ctx->id);
-        r["method"] = ctx->method;
-        r["uri"] = ctx->uri.str;
-        if (!ctx->error_message.empty()) {
-          r["error"] = ctx->error_message;
-        }
-        r["response_code"] = Json::Int64(ctx->resp_code);
-        r["response_headers"] = Json::Value(Json::arrayValue);
-        for (auto const& h: ctx->resp_headers) {
-          r["response_headers"].append(h);
-        }
-        r["response_body"] = ctx->resp_body;
-        resp["tasks"].append(r);
+        resp["tasks"].append(ctx->ToJson());
       } else {
         busy_tasks.push_back(ctx);
       }

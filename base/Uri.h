@@ -18,6 +18,8 @@ struct Uri {
   std::string path;
   std::string query;
   std::string fragment;
+
+  Uri& operator=(const std::string& u) { Init(u); }
 };
 
 std::ostream &operator<<(std::ostream& os, const Uri& uri);
