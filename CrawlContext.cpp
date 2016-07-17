@@ -2,64 +2,50 @@
 
 namespace crawl {
 
-namespace {
+#define SET_URI(json, uri) if (!uri.str.empty()) json[#uri] = uri.str
+#define SET_BOOL(json, field) json[#field] = field
+#define SET_LONG(json, field) if (field != -1) json[#field] = Json::Int64(field)
+#define SET_STRING(json, field) if (!field.empty()) json[#field] = field
+#define SET_STRING_LIST(json, field) do { \
+	for (const std::string& v: field) json[#field].append(v); } while (0)
 
-Json::Value to_json_str_array(const std::vector<std::string>& array) {
-  Json::Value j(Json::arrayValue);
-  for (const std::string& v: array) {
-    j.append(v);
-  }
-  return j;
+Json::Value CrawlContext::to_json() const {
+  Json::Value json;
+
+  SET_LONG(json, id);
+  SET_STRING(json, summary);
+
+  SET_STRING(json, method);
+  SET_URI(json, uri);
+  SET_STRING_LIST(json, req_headers);
+
+  SET_LONG(json, resp_code);
+  SET_STRING(json, resp_reason);
+  SET_STRING_LIST(json, resp_headers);
+  SET_STRING(json, resp_body);
+
+  SET_BOOL(json, truncated);
+  SET_STRING(json, error_message);
+  SET_URI(json, redirect_uri);
+
+  return json;
 }
 
-std::vector<std::string> from_json_str_array(const Json::Value& obj) {
-  std::vector<std::string> vec;
-  if (obj.type() != Json::arrayValue) {
-    throw std::invalid_argument("Not an array, " + std::to_string((int)obj.type()));
-  }
-  for (const Json::Value &v: obj) { vec.push_back(v.asString()); }
-  return vec;
-}
+#define GET_URI(json, field) if (json.isMember(#field)) field = json[#field].asString()
+#define GET_LONG(json, field) if (json.isMember(#field)) field = json[#field].asInt64()
+#define GET_STRING(json, field) if (json.isMember(#field)) field = json[#field].asString()
+#define GET_STRING_LIST(json, field) do { \
+	if (json.isMember(#field)) { \
+		for (const Json::Value& v: json[#field]) { \
+			field.push_back(v.asString()); \
+		} \
+	} \
+	} while (0)
 
-} // namespace
-
-#define SET_INT64(obj, field)  if (field != -1) { obj[#field] = Json::Int64(field); }
-#define SET_URI(obj, field)  if (!field.str.empty()) { obj[#field] = field.str; }
-#define SET_STRING(obj, field)  if (!field.empty()) { obj[#field] = field; }
-#define SET_STRING_ARRAY(obj, field)  if (!field.empty()) { obj[#field] = to_json_str_array(field); }
-
-Json::Value CrawlContext::ToJson() const {
-  Json::Value obj(Json::objectValue);
-  SET_INT64(obj, id);
-  SET_STRING(obj, method);
-  SET_URI(obj, uri);
-  SET_URI(obj, redirect_uri);
-  SET_STRING_ARRAY(obj, req_headers);
-  SET_INT64(obj, resp_code);
-  SET_STRING_ARRAY(obj, resp_headers);
-  SET_STRING(obj, resp_body);
-  SET_STRING(obj, error_message);
-  return obj;
-}
-
-#define GET_INT64(obj, field) if (obj.isMember(#field)) { field = obj[#field].asInt64(); }
-#define GET_URI(obj, field) if (obj.isMember(#field)) { field.Init(obj[#field].asString()); }
-#define GET_STRING(obj, field) \
-    if (obj.isMember(#field) && obj.type() != Json::nullValue) { field = obj[#field].asString(); }
-#define GET_STRING_ARRAY(obj, field) \
-    if (obj.isMember(#field) && obj[#field].type() != Json::nullValue) { field = from_json_str_array(obj[#field]); }
-
-CrawlContext& CrawlContext::FromJson(const Json::Value& obj) {
-  GET_INT64(obj, id);
-  GET_STRING(obj, method);
-  GET_URI(obj, uri);
-  GET_URI(obj, redirect_uri);
-  GET_STRING_ARRAY(obj, req_headers);
-  GET_INT64(obj, resp_code);
-  GET_STRING_ARRAY(obj, resp_headers);
-  GET_STRING(obj, resp_body);
-  GET_STRING(obj, error_message);
-  return *this;
+void CrawlContext::from_json(const Json::Value& json) {
+  GET_STRING(json, method);
+  GET_URI(json, uri);
+  GET_STRING_LIST(json, req_headers);
 }
 
 } // namespace crawl

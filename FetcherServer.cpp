@@ -41,7 +41,6 @@ int main(int argc, char *argv[]) {
     }
 
     resp->headers["Content-Type"] = "application/json";
-
     Json::StyledWriter writer;
     resp->body = writer.write(resp_body);
   });

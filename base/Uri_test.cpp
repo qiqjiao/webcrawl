@@ -9,8 +9,6 @@ class UtilsTest : public testing::Test {
 };
 
 TEST_F(UtilsTest, Uri) {
-  Uri u;
-
   auto verify = [](const std::vector<std::string> &v, const Uri &u) {
     EXPECT_EQ(v[0], u.scheme);
     EXPECT_EQ(v[1], u.username);
@@ -22,7 +20,7 @@ TEST_F(UtilsTest, Uri) {
     EXPECT_EQ(v[7], u.fragment);
   };
 
-  u.Init("foo://username:password@example.com:8042/over/there/index.dtb?type=animal&name=narwhal#nose");
+  Uri u("foo://username:password@example.com:8042/over/there/index.dtb?type=animal&name=narwhal#nose");
   verify({"foo", "username", "password", "example.com", "8042",
           "/over/there/index.dtb", "type=animal&name=narwhal", "nose"}, u);
   // submatch 0: foo://username:password@example.com:8042/over/there/index.dtb?type=animal&name=narwhal#nose
@@ -39,7 +37,7 @@ TEST_F(UtilsTest, Uri) {
   // submatch 11: type=animal&name=narwhal
   // submatch 12: #nose
   // submatch 13: nose
-  u.Init("http://example.com/over/there/index.dtb");
+  u = "http://example.com/over/there/index.dtb";
   verify({"http", "", "", "example.com", "80", "/over/there/index.dtb", "", ""}, u);
 }
 

@@ -4,12 +4,13 @@
 
 namespace base {
 
-void Uri::Init(const std::string& u) {
+Uri::Uri(const std::string& uri) : str(uri) {
   static const std::regex uri_regex(
       // scheme  ://  usr :pwd  @   host    :port        /path         ?query     #fragment
       "^([a-z]+)://(([^:]+)(:([^@]+))?@)?([^/:]+)(:([0-9]+))?(/[^\\?#]*)?(\\?([^#]*))?(#(.*))?$");
 
-  str = u;
+  if (str.empty()) { return; }
+
   std::smatch smatch;
   if (!std::regex_match(str, smatch, uri_regex)) {
     throw std::invalid_argument("Invalid uri [" + str + "]");

@@ -70,11 +70,14 @@ Fetcher::~Fetcher() {
 }
 
 void Fetcher::add(std::shared_ptr<CrawlContext> ctx) {
+  LOG(INFO) << "New task [" << ctx->id << ":" << ctx->uri << "]";
+
   auto resolver_cb = [this, ctx](const base::Resolver::AddrList &addrs, const base::Status &s)
   {
     VLOG(1) << "Fetcher dns resolution done, " << s;
     ctx->end_resolve_time_ms = base::now_in_ms();
     if (!s) {
+      LOG(INFO) << "Done task [" << ctx->id << ":" << ctx->uri << ":" << ctx->error_message << "]";
       ctx->done = true;
       ctx->end_req_time_ms = base::now_in_ms();
       ctx->error_message = s.msg();
@@ -147,15 +150,15 @@ Json::Value Fetcher::create_tasks_req(const Json::Value &req_body) {
     std::vector<std::shared_ptr<CrawlContext>> ctxs;
     for (auto const& task: req_body["tasks"]) {
       auto ctx = std::make_shared<CrawlContext>();
-      ctx->FromJson(task);
+      ctx->from_json(task);
       ctx->id = reinterpret_cast<long>(ctx.get());
-      ctx->summary = ctx->method + " " + ctx->uri.str;
+      ctx->summary = ctx->method + ":" + ctx->uri.str;
       ctxs.push_back(ctx);
     }
 
     resp["tasks"] = Json::Value(Json::arrayValue);
     for (auto ctx: ctxs) {
-      resp["tasks"].append(ctx->ToJson());
+      resp["tasks"].append(ctx->to_json());
       add(ctx);
     }
   } catch (const std::exception &e) {
@@ -178,8 +181,7 @@ Json::Value Fetcher::get_done_tasks_req() {
       auto ctx = tasks_.back();
       tasks_.pop_back();
       if (ctx->done) {
-        Json::Value r(Json::objectValue);
-        resp["tasks"].append(ctx->ToJson());
+        resp["tasks"].append(ctx->to_json());
       } else {
         busy_tasks.push_back(ctx);
       }
@@ -291,6 +293,7 @@ void Fetcher::check_multi_info() {
         ctx->error_message = curl_easy_strerror(msg->data.result);
         VLOG(2) << msg->data.result << ":" << curl_easy_strerror(msg->data.result);
       }
+      LOG(INFO) << "Done task [" << ctx->id << ":" << ctx->uri << ":" << ctx->error_message << "]";
       ctx->done = true;
       ctx->end_req_time_ms = base::now_in_ms();
       curl_multi_remove_handle(multi_, easy);

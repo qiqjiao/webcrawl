@@ -6,8 +6,6 @@
 namespace base {
 
 struct Uri {
-  void Init(const std::string& uri);
-
   std::string str;
 
   std::string scheme;
@@ -19,7 +17,11 @@ struct Uri {
   std::string query;
   std::string fragment;
 
-  Uri& operator=(const std::string& u) { Init(u); }
+  Uri(const std::string& uri = std::string());
+  Uri(const Uri& other) = default;
+
+  Uri &operator=(const std::string& uri) { return *this = Uri(uri); }
+  Uri &operator=(const Uri& other) = default;
 };
 
 std::ostream &operator<<(std::ostream& os, const Uri& uri);
