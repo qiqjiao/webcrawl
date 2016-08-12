@@ -1,0 +1,6 @@
+[submodule "3rd/c-ares"]
+	path = 3rd/c-ares
+	url = https://github.com/c-ares/c-ares.git
+[submodule "3rd/googletest"]
+	path = 3rd/googletest
+	url = https://github.com/google/googletest.git
