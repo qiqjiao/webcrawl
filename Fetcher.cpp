@@ -293,7 +293,8 @@ void Fetcher::check_multi_info() {
         ctx->error_message = curl_easy_strerror(msg->data.result);
         VLOG(2) << msg->data.result << ":" << curl_easy_strerror(msg->data.result);
       }
-      LOG(INFO) << "Done task [" << ctx->id << ":" << ctx->uri << ":" << ctx->error_message << "]";
+      LOG(INFO) << "Done task [" << ctx->id << ":" << ctx->uri << ":"
+                << ctx->resp_code << ":" << ctx->error_message << "]";
       ctx->done = true;
       ctx->end_req_time_ms = base::now_in_ms();
       curl_multi_remove_handle(multi_, easy);

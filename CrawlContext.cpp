@@ -1,5 +1,7 @@
 #include "CrawlContext.h"
 
+#include "base/Base64.h"
+
 namespace crawl {
 
 #define SET_URI(json, uri) if (!uri.str.empty()) json[#uri] = uri.str
@@ -22,7 +24,7 @@ Json::Value CrawlContext::to_json() const {
   SET_LONG(json, resp_code);
   SET_STRING(json, resp_reason);
   SET_STRING_LIST(json, resp_headers);
-  SET_STRING(json, resp_body);
+  if (!resp_body.empty()) json["resp_body"] = base::base64_encode(resp_body);
 
   SET_BOOL(json, truncated);
   SET_STRING(json, error_message);
